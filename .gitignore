@@ -1,0 +1,125 @@
+# =========================
+# .gitignore for EduPredict AI
+# Full-stack AI project: React + Vite frontend, Node/Express, Python/FastAPI backend
+# Organized sections for clarity and maintainability
+# =========================
+
+#### Dependencies
+# Node
+/node_modules/
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+pnpm-debug.log*
+
+# Python packaging/build artifacts
+/pip-wheel-metadata/
+*.egg-info/
+
+
+#### Environment Variables
+# Local env files (do NOT commit secrets)
+.env
+.env.*
+
+
+#### Build / Distribution
+# Frontend build output
+/dist/
+/build/
+/out/
+/.vite/
+/.parcel-cache/
+
+# Next.js/Vercel/Staging folders (if present)
+/.next/
+/.nuxt/
+
+# Python build artifacts
+/build/
+/dist/
+*.egg-info/
+
+
+#### Python
+# Virtual environments
+/.venv/
+/venv/
+/env/
+ENV/
+venv.bak/
+
+# Byte-compiled / cache
+__pycache__/
+*.py[cod]
+*$py.class
+
+# Test / coverage
+.pytest_cache/
+.mypy_cache/
+.cache/
+coverage/
+htmlcov/
+.tox/
+.coverage
+
+# Jupyter
+.ipynb_checkpoints/
+
+# Python packaging
+pip-wheel-metadata/
+
+
+#### Machine Learning Artifacts
+# Model binaries and large artifacts (ignored by default)
+/artifacts/
+*.joblib
+*.pkl
+*.h5
+*.pt
+*.pth
+
+
+#### Logs
+logs/
+*.log
+npm-debug.log*
+debug.log
+
+
+#### IDE / Editor
+# VS Code
+/.vscode/
+
+# JetBrains
+/.idea/
+*.iml
+
+# Sublime Text
+*.sublime-project
+*.sublime-workspace
+
+
+#### OS generated files
+.DS_Store
+Thumbs.db
+desktop.ini
+ehthumbs.db
+
+
+#### Temporary / Misc
+*.swp
+*~
+*.tmp
+*.bak
+*.orig
+.cache/
+
+
+#### Coverage / Reporting / CI
+.nyc_output/
+.parcel-cache/
+coverage/
+
+
+# End of .gitignore

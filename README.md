@@ -1,16 +1,30 @@
 # EduPredict AI
 
-This repository contains a student performance prediction application with a FastAPI backend and a Vite + React frontend.
+EduPredict AI is a student performance prediction project with a FastAPI backend and a Vite + React frontend.
 
-## Backend
+## What It Does
 
-### Setup
+- Predicts student performance from study and behavior inputs
+- Shows live model metrics and dataset insights
+- Provides an FAQ chatbot for quick guidance
+- Shows live AI engine status in the UI
+- Lets you search, filter, refresh, and review dataset entries
+
+## Project Structure
+
+- `edupredict-ai-backend/` - FastAPI API, prediction logic, metrics, FAQ service, and dataset download route
+- `edupredict-ai-frontend/` - React UI for the landing page, prediction form, analytics dashboard, and dataset review drawer
+- `student_performance.csv` - training dataset
+- `student_marks_prediction.py` - standalone training workflow
+- `student_marks_prediction.ipynb` - notebook version of the training workflow
+
+## Backend Setup
 
 1. Open a PowerShell terminal.
-2. Navigate to the backend directory:
+2. Move to the backend folder:
 
 ```powershell
-cd "d:\ML project\edupredict-ai-backend"
+cd "D:\ML project\edupredict-ai-backend"
 ```
 
 3. Create and activate a virtual environment:
@@ -20,161 +34,98 @@ python -m venv .venv
 .\.venv\Scripts\Activate.ps1
 ```
 
-4. Install backend dependencies:
+4. Install dependencies:
 
 ```powershell
 python -m pip install -r requirements.txt
 ```
 
-> Note: `requirements.txt` has been updated to use versions compatible with Python 3.14, including `pandas==3.0.3` and `numpy==2.4.6`.
-
-### Run the backend server
+5. Start the API server:
 
 ```powershell
 python -m uvicorn app.main:app --reload --host 127.0.0.1 --port 8001
 ```
 
-> Note: The backend runs on port 8001 (not 8000) due to Windows socket permission restrictions.
+## Frontend Setup
 
-### Verify the backend
-
-- Health endpoint: `http://127.0.0.1:8001/api/health`
-- Prediction endpoint example:
+1. Open another PowerShell terminal.
+2. Move to the frontend folder:
 
 ```powershell
-$body = @{StudyHours=10; Attendance=85; Motivation='High'; AssignmentCompletion=90; OnlineCourses=2; StressLevel=3} | ConvertTo-Json
-Invoke-RestMethod -Uri http://127.0.0.1:8001/api/predict -Method Post -Body $body -ContentType 'application/json'
+cd "D:\ML project\edupredict-ai-frontend"
 ```
 
-- Dataset download endpoint: `http://127.0.0.1:8001/api/dataset/download` (returns CSV file)
-
-### Train the model
-
-```powershell
-cd "d:\ML project"
-python edupredict-ai-backend\scripts\train_model.py
-```
-
-### Train with the standalone Python workflow
-
-You can also train the model directly from the repository root using the standalone script:
-
-```powershell
-cd "d:\ML project"
-python student_marks_prediction.py
-```
-
-This script loads `student_performance.csv`, trains a `RandomForestClassifier`, prints the model accuracy, and saves the trained model to `student_grade_model.pkl`.
-
-The notebook `student_marks_prediction.ipynb` is available for interactive exploration and reporting, but the `.py` script is the preferred reproducible training workflow.
-
-## API Documentation
-
-### Available Endpoints
-
-#### 1. Health Check
-- **Endpoint**: `GET /api/health`
-- **Description**: Verifies backend server status and model readiness
-- **Response**: Returns model accuracy and readiness status
-
-#### 2. Predict Student Performance
-- **Endpoint**: `POST /api/predict`
-- **Description**: Predicts student final grade based on input metrics
-- **Request Body**:
-  ```json
-  {
-    "StudyHours": 10,
-    "Attendance": 85,
-    "Motivation": "High",
-    "AssignmentCompletion": 90,
-    "OnlineCourses": 2,
-    "StressLevel": 3
-  }
-  ```
-- **Response**: Returns prediction with confidence level, peer percentile, and performance category
-- **Example Response**:
-  ```json
-  {
-    "predicted_class": 2,
-    "predicted_class_label": "FinalGrade 2",
-    "prediction": "GOOD PROGRESS",
-    "predicted_score": 76,
-    "confidence": 34.0,
-    "peer_percentile": "Top 24%",
-    "performance_category": "GOOD PROGRESS",
-    "recommendation": "Small gains in regular study and active practice should continue to improve the forecast."
-  }
-  ```
-
-#### 3. Get Model Metrics
-- **Endpoint**: `GET /api/metrics`
-- **Description**: Retrieves model performance metrics including accuracy, precision, and recall
-- **Response**: Returns accuracy, precision, recall, F1-score, and confusion matrix
-
-#### 4. Download Training Dataset
-- **Endpoint**: `GET /api/dataset/download`
-- **Description**: Downloads the training dataset in CSV format
-- **Response**: Returns `student_performance.csv` file with 539,607 bytes containing student performance data
-- **Usage**: Can be downloaded from the Analytics Dashboard in the web application
-- **File Format**: CSV with headers including StudyHours, Attendance, Motivation, AssignmentCompletion, OnlineCourses, StressLevel, and FinalGrade
-
-#### 5. FAQ Chatbot
-- **Endpoint**: `POST /api/faq`
-- **Description**: Processes FAQ queries using embeddings-based similarity search
-- **Request Body**:
-  ```json
-  {
-    "query": "How can I improve my grade?"
-  }
-  ```
-
-## Frontend Features
-
-### Pages
-
-- **Analytics Dashboard** (`/analytics`): Overview of model performance and student statistics
-- **Predict Score** (`/predict`): Interactive prediction form for student performance
-- **Model Performance** (`/model-performance`): Detailed model metrics and dataset overview with download capability
-- **About Project** (`/`): Project information and landing page
-
-### Dataset Download
-
-From the **Analytics Dashboard**, you can download the complete training dataset by clicking the "Download Dataset" button in the Dataset Overview section. This CSV file contains all training features and target variables used to train the model.
-
-## Frontend
-
-### Setup
-
-1. Open a PowerShell terminal.
-2. Navigate to the frontend directory:
-
-```powershell
-cd "d:\ML project\edupredict-ai-frontend"
-```
-
-3. Install npm dependencies:
+3. Install dependencies:
 
 ```powershell
 npm install
 ```
 
-### Run the frontend
+4. Start the frontend:
 
 ```powershell
 npm run dev -- --host 127.0.0.1 --port 5173
 ```
 
-The app should be available at `http://127.0.0.1:5173/`.
+## Useful URLs
 
-### Notes
+- Frontend: `http://127.0.0.1:5173/`
+- Backend health: `http://127.0.0.1:8001/api/health`
+- Dataset download: `http://127.0.0.1:8001/api/dataset/download`
 
-- The frontend is configured with a proxy from `/api` to `http://127.0.0.1:8001` in `vite.config.js`.
-- Make sure the backend server is running on port 8001 before using the predict flow.
-- The browser console warning in the frontend was fixed by ensuring React sidebar navigation items use unique keys.
+## Key Features
 
-## Troubleshooting
+### Predict Page
 
-- If the backend fails on `pandas` installation, use Python 3.14 or a compatible version and re-run `python -m pip install -r requirements.txt`.
-- If the frontend cannot reach the backend, confirm both services are running and that you are using the correct local ports:
-  - backend: `127.0.0.1:8000`
-  - frontend: `127.0.0.1:5173`
+- Interactive sliders and inputs for study hours, attendance, motivation, assignments, courses, and stress
+- Prediction result card with confidence and recommendations
+- AI engine badge that turns offline when the browser is offline or the backend health check fails
+
+### Analytics Page
+
+- Live search bar for dataset rows
+- Working filter menu for status-based views
+- Refresh button that re-downloads the dataset
+- Dataset preview drawer with a close control and the full dataset review
+
+### Dataset Overview Page
+
+- Model metrics, feature importance, and confusion matrix visualization
+- Profile card with editable name and role
+
+### FAQ Chatbot
+
+- Friendly assistant bubble with formatted replies
+- Suggested prompts and quick actions
+
+## API Endpoints
+
+- `GET /api/health` - backend/model health check
+- `POST /api/predict` - predict student performance
+- `GET /api/metrics` - model metrics
+- `GET /api/dataset/download` - download the training CSV
+- `POST /api/faq` - FAQ assistant queries
+
+## Training Workflow
+
+You can retrain the model with either workflow:
+
+```powershell
+cd "D:\ML project"
+python edupredict-ai-backend\scripts\train_model.py
+```
+
+or
+
+```powershell
+cd "D:\ML project"
+python student_marks_prediction.py
+```
+
+The notebook `student_marks_prediction.ipynb` is available if you prefer an interactive workflow.
+
+## Notes
+
+- The frontend proxies `/api` requests to `http://127.0.0.1:8001`
+- The project favicon is located at `edupredict-ai-frontend/public/favicon.svg`
+- Generated build output is not required in source control; rebuild it with `npm run build` when needed

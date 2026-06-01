@@ -1,8 +1,6 @@
 import { useEffect, useRef } from 'react';
 import { Link } from 'react-router-dom';
 import { motion } from 'framer-motion';
-import { useThemeMode } from '../hooks/useThemeMode';
-import ThemeToggle from '../components/ThemeToggle';
 import LandingChrome from '../components/layouts/LandingChrome';
 
 function ParticleCanvas() {
@@ -82,7 +80,6 @@ function ParticleCanvas() {
 }
 
 export default function LandingPage() {
-  const { theme, toggleTheme } = useThemeMode();
   const chartRef = useRef(null);
 
   useEffect(() => {
@@ -156,22 +153,7 @@ export default function LandingPage() {
 
   return (
     <LandingChrome
-      right={(
-        <>
-          <ThemeToggle
-            theme={theme}
-            onToggle={toggleTheme}
-            className="material-symbols-outlined text-primary dark:text-primary-fixed hover:bg-primary-container/20 p-2 rounded-full transition-all duration-300 active:scale-95"
-          />
-          <div className="w-10 h-10 rounded-full bg-primary-container flex items-center justify-center text-on-primary-container font-bold overflow-hidden border-2 border-primary/20">
-            <img
-              alt="User Profile"
-              className="w-full h-full object-cover"
-              src="https://lh3.googleusercontent.com/aida-public/AB6AXuCg4TU1WQx6VUYFsAeZkNm7pxYLtMPpMZyt5dwdZ4Gq8vA2iDPTIvJ9MbLpeOpYcShtOJvK4AhXhSa9CcR7pDgWiOHZ5MBKXLtDmsJjJKExffP8GKqu3ZeoxvNo1_KDwZcV3w18NvCd6u6M7qVnLo7eKPQZg9o1MdgmH7KglrmmxDx-uKmzGDZIMYDGH8n7YW_6dnM3T6Z2N2Zu2_4Ma9W-fWkL-NwpTQ47WB5NuLwBgvk3rlg5jA0JhZVAyL7Taf-uKiOPlnexoqU"
-            />
-          </div>
-        </>
-      )}
+      right={null}
     >
       <main className="relative min-h-screen overflow-hidden hero-gradient">
         <ParticleCanvas />

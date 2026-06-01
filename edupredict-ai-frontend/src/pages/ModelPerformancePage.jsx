@@ -1,10 +1,9 @@
 import { useEffect } from 'react';
 import DashboardShell from '../components/layouts/DashboardShell';
-import ThemeToggle from '../components/ThemeToggle';
 import ConfusionMatrixGrid from '../charts/ConfusionMatrixGrid';
 import FeatureImportanceChart from '../charts/FeatureImportanceChart';
-import { useThemeMode } from '../hooks/useThemeMode';
 import { useModelMetrics } from '../hooks/useModelMetrics';
+import { useProfile } from '../context/ProfileContext';
 
 const sidebarItems = [
   { to: '/analytics', label: 'Dashboard', icon: 'dashboard', inactiveClassName: 'flex items-center gap-3 p-3 text-on-surface-variant hover:text-primary dark:text-outline-variant hover:bg-surface-container-highest/50 rounded-xl transition-all duration-200 group', activeClassName: 'bg-primary-container text-on-primary-container rounded-xl font-semibold shadow-[0_0_15px_rgba(79,70,229,0.3)] flex items-center gap-3 p-3 transition-all duration-200 translate-x-1' },
@@ -39,8 +38,8 @@ function ToggleChatButton() {
 }
 
 export default function ModelPerformancePage() {
-  const { theme, toggleTheme } = useThemeMode();
   const { metrics } = useModelMetrics();
+  const { username, role, clearProfile, setShowModal } = useProfile();
 
   useEffect(() => {
     document.querySelectorAll('.glass-card').forEach((card) => {
@@ -69,15 +68,21 @@ export default function ModelPerformancePage() {
       footer={{
         content: (
           <>
-            <img
-              alt="Academic Profile"
-              className="w-10 h-10 rounded-full object-cover border-2 border-primary"
-              src="https://lh3.googleusercontent.com/aida-public/AB6AXuC5uniMDtR5hCMQ2Kr1-HnrHawI4W240LG_AnxG1Bt6uh7R-2ye75FYw9LyBM2trepiS3lGND8FUpfxslgHZYJiNb3Df6PhdynGOezaetg9NEpJWhyNhqVxRC1HMzeUBE1hybOCfbQKjaComnAQqPTuwQNJj_DqkT9MrHES3ZPEPSbuI9XvEGaA6KtFpK6KZE-DNLa5WO5aQIigtew1WPpjg2Ck3ovXHeyiWWLNQP5FuQqTAp5Tvs9OQHeJGbP6v6v6Dl2EaYqL1TY"
-            />
-            <div className="overflow-hidden">
-              <p className="text-on-surface font-bold truncate">Dr. Alex Chen</p>
-              <p className="text-on-surface-variant text-xs truncate">Head of Research</p>
+            <div className="w-10 h-10 rounded-full bg-primary-fixed flex items-center justify-center shrink-0">
+              <span className="material-symbols-outlined text-primary">person</span>
             </div>
+            <button
+              type="button"
+              className="overflow-hidden text-left min-w-0"
+              onClick={() => setShowModal(true)}
+              aria-label="Edit profile details"
+            >
+              <p className="text-on-surface font-bold truncate">{username || 'Guest'}</p>
+              <p className="text-on-surface-variant text-xs truncate">{role || 'User'}</p>
+            </button>
+            <button className="ml-auto text-on-surface-variant hover:text-primary shrink-0" onClick={clearProfile}>
+              <span className="material-symbols-outlined">logout</span>
+            </button>
           </>
         )
       }}
@@ -94,19 +99,7 @@ export default function ModelPerformancePage() {
           </div>
         </>
       )}
-      topBarRight={(
-        <div className="flex items-center gap-4">
-          <ThemeToggle
-            theme={theme}
-            onToggle={toggleTheme}
-            className="w-10 h-10 rounded-full flex items-center justify-center text-on-surface-variant hover:bg-primary-container/20 transition-all duration-300"
-          />
-          <div className="h-8 w-[1px] bg-outline-variant/30 mx-1" />
-          <button className="w-10 h-10 rounded-full overflow-hidden border-2 border-primary-fixed flex items-center justify-center bg-surface-container">
-            <span className="material-symbols-outlined text-primary">account_circle</span>
-          </button>
-        </div>
-      )}
+      topBarRight={null}
     >
       <ToggleChatButton />
       <div className="flex-1 p-container-padding-mobile md:p-container-padding-desktop space-y-8 pb-24 md:pb-8 max-w-[1440px] mx-auto w-full">

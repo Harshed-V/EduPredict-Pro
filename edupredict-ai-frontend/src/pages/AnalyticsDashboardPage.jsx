@@ -1,6 +1,6 @@
+import { useEffect, useMemo, useRef, useState } from 'react';
 import DashboardShell from '../components/layouts/DashboardShell';
-import ThemeToggle from '../components/ThemeToggle';
-import { useThemeMode } from '../hooks/useThemeMode';
+import { useProfile } from '../context/ProfileContext';
 
 const sidebarItems = [
   {
@@ -56,8 +56,144 @@ const mobileItems = [
   { to: '/model-performance', label: 'Models', icon: 'settings_suggest', inactiveClassName: 'text-on-surface-variant', activeClassName: 'text-on-surface-variant' }
 ];
 
+const sampleRows = [
+  {
+    studentId: '#EDU-8821',
+    major: 'Computer Science',
+    predicted: '94.5',
+    confidence: '98%',
+    confidenceWidth: '98%',
+    status: 'ELITE',
+    statusClassName: 'bg-green-100 text-green-700'
+  },
+  {
+    studentId: '#EDU-4492',
+    major: 'Architecture',
+    predicted: '78.2',
+    confidence: '82%',
+    confidenceWidth: '82%',
+    status: 'STABLE',
+    statusClassName: 'bg-blue-100 text-blue-700'
+  },
+  {
+    studentId: '#EDU-2210',
+    major: 'Medicine',
+    predicted: '52.4',
+    confidence: '65%',
+    confidenceWidth: '65%',
+    status: 'AT RISK',
+    statusClassName: 'bg-error-container text-error'
+  }
+];
+
+const majorByFinalGrade = {
+  0: 'At Risk',
+  1: 'Arts',
+  2: 'Business',
+  3: 'Computer Science',
+  4: 'Engineering',
+  5: 'Medicine'
+};
+
+function parseCsv(text) {
+  const lines = text.trim().split(/\r?\n/);
+  const headers = lines.shift()?.split(',') || [];
+
+  return lines
+    .filter(Boolean)
+    .map((line) => {
+      const values = line.split(',');
+      return headers.reduce((row, header, index) => {
+        row[header] = values[index];
+        return row;
+      }, {});
+    });
+}
+
+function buildStatus(finalGrade, examScore) {
+  const score = Number(examScore);
+  const grade = Number(finalGrade);
+
+  if (score >= 80 || grade >= 4) {
+    return { label: 'ELITE', className: 'bg-green-100 text-green-700', confidenceWidth: '98%' };
+  }
+  if (score >= 60 || grade >= 2) {
+    return { label: 'STABLE', className: 'bg-blue-100 text-blue-700', confidenceWidth: '82%' };
+  }
+  return { label: 'AT RISK', className: 'bg-error-container text-error', confidenceWidth: '65%' };
+}
+
+function getDisplayRows(entries, showAllEntries) {
+  if (!showAllEntries) {
+    return sampleRows;
+  }
+
+  return entries.slice(0, 1240).map((entry, index) => {
+    const status = buildStatus(entry.FinalGrade, entry.ExamScore);
+
+    return {
+      studentId: `#EDU-${String(index + 1).padStart(4, '0')}`,
+      major: majorByFinalGrade[Number(entry.FinalGrade)] || 'General Studies',
+      predicted: Number(entry.ExamScore).toFixed(1),
+      confidence: status.confidenceWidth,
+      confidenceWidth: status.confidenceWidth,
+      status: status.label,
+      statusClassName: status.className
+    };
+  });
+}
+
+function matchesSearch(row, query) {
+  if (!query) return true;
+  const normalized = query.toLowerCase();
+  return [row.studentId, row.major, row.predicted, row.confidence, row.status]
+    .join(' ')
+    .toLowerCase()
+    .includes(normalized);
+}
+
+function matchesFilter(row, activeFilter) {
+  if (activeFilter === 'All') return true;
+  if (activeFilter === 'At Risk') return row.status === 'AT RISK';
+  return row.status === activeFilter.toUpperCase();
+}
+
 export default function AnalyticsDashboardPage() {
-  const { theme, toggleTheme } = useThemeMode();
+  const { username, role, clearProfile, setShowModal } = useProfile();
+  const [showReviewDrawer, setShowReviewDrawer] = useState(false);
+  const [datasetEntries, setDatasetEntries] = useState([]);
+  const [datasetLoaded, setDatasetLoaded] = useState(false);
+  const [datasetLoading, setDatasetLoading] = useState(false);
+  const [datasetError, setDatasetError] = useState('');
+  const [searchQuery, setSearchQuery] = useState('');
+  const [activeFilter, setActiveFilter] = useState('All');
+  const [showFilterMenu, setShowFilterMenu] = useState(false);
+  const [isRefreshing, setIsRefreshing] = useState(false);
+  const filterMenuRef = useRef(null);
+
+  const previewRows = useMemo(() => getDisplayRows(datasetEntries, false), [datasetEntries]);
+  const reviewRows = useMemo(() => getDisplayRows(datasetEntries, datasetLoaded), [datasetEntries, datasetLoaded]);
+  const filteredPreviewRows = useMemo(
+    () => previewRows.filter((row) => matchesSearch(row, searchQuery) && matchesFilter(row, activeFilter)),
+    [previewRows, searchQuery, activeFilter]
+  );
+  const filteredReviewRows = useMemo(
+    () => reviewRows.filter((row) => matchesSearch(row, searchQuery) && matchesFilter(row, activeFilter)),
+    [reviewRows, searchQuery, activeFilter]
+  );
+  const reviewRowCount = datasetLoaded ? filteredReviewRows.length : filteredPreviewRows.length;
+
+  useEffect(() => {
+    const handlePointerDown = (event) => {
+      if (!filterMenuRef.current) return;
+      if (!filterMenuRef.current.contains(event.target)) {
+        setShowFilterMenu(false);
+      }
+    };
+
+    window.addEventListener('mousedown', handlePointerDown);
+    return () => window.removeEventListener('mousedown', handlePointerDown);
+  }, []);
 
   const handleDownloadDataset = async () => {
     try {
@@ -80,6 +216,49 @@ export default function AnalyticsDashboardPage() {
     }
   };
 
+  const loadDataset = async ({ showDrawer = false, refresh = false } = {}) => {
+    setDatasetError('');
+
+    if (!datasetLoaded || refresh) {
+      if (refresh) {
+        setIsRefreshing(true);
+      } else {
+        setDatasetLoading(true);
+      }
+
+      try {
+        const response = await fetch('/api/dataset/download', { cache: 'no-store' });
+        if (!response.ok) {
+          throw new Error('Failed to load dataset entries');
+        }
+
+        const csvText = await response.text();
+        setDatasetEntries(parseCsv(csvText));
+        setDatasetLoaded(true);
+      } catch (error) {
+        setDatasetError(error instanceof Error ? error.message : 'Failed to load dataset entries');
+        setDatasetLoading(false);
+        setIsRefreshing(false);
+        return;
+      } finally {
+        setDatasetLoading(false);
+        setIsRefreshing(false);
+      }
+    }
+
+    if (showDrawer) {
+      setShowReviewDrawer(true);
+    }
+  };
+
+  const handleViewAllEntries = async () => {
+    await loadDataset({ showDrawer: true });
+  };
+
+  const handleUpdateData = async () => {
+    await loadDataset({ refresh: true });
+  };
+
   return (
     <DashboardShell
       sidebarItems={sidebarItems}
@@ -87,16 +266,19 @@ export default function AnalyticsDashboardPage() {
       footer={{
         content: (
           <>
-            <img
-              alt="Profile"
-              className="w-10 h-10 rounded-full object-cover"
-              src="https://lh3.googleusercontent.com/aida-public/AB6AXuBet6dsvJR_vn8gHmJSQq9c7rtMe81_cihLYk_MmiE9tfiXg34DB6rnCesUp6MA9jX-fd8jUaYfEFz_Nv1f_LLcaTXepQjhzM4JDsmq9yrAn9NnyGi76kCwIipfZmRsrTWnserJprBXkVyWOD-hVHWBXBBkDDb4BHklD3JIGIJBTmEKtepAWc7TVnjUvHBX82RC7KyVWwcLsGrjXz5ag-iOEfRHM_lNCYbF2i7dMch9xUko5NL70dKHrEjqQHYjBTOkbkk3gNsttFY"
-            />
-            <div className="overflow-hidden">
-              <p className="font-label-md text-label-md truncate">Dr. Aris Thorne</p>
-              <p className="text-xs text-on-surface-variant truncate">Lead Researcher</p>
+            <div className="w-10 h-10 rounded-full bg-primary-fixed flex items-center justify-center shrink-0">
+              <span className="material-symbols-outlined text-primary">person</span>
             </div>
-            <button className="ml-auto text-on-surface-variant hover:text-primary">
+            <button
+              type="button"
+              className="overflow-hidden text-left min-w-0"
+              onClick={() => setShowModal(true)}
+              aria-label="Edit profile details"
+            >
+              <p className="font-label-md text-label-md truncate">{username || 'Guest'}</p>
+              <p className="text-xs text-on-surface-variant truncate">{role || 'User'}</p>
+            </button>
+            <button className="ml-auto text-on-surface-variant hover:text-primary shrink-0" onClick={clearProfile}>
               <span className="material-symbols-outlined">logout</span>
             </button>
           </>
@@ -116,6 +298,8 @@ export default function AnalyticsDashboardPage() {
               className="bg-transparent border-none focus:ring-0 text-body-md w-64 placeholder:text-outline-variant"
               placeholder="Search analytics..."
               type="text"
+              value={searchQuery}
+              onChange={(event) => setSearchQuery(event.target.value)}
             />
             <span className="text-[10px] text-outline-variant bg-surface-variant/50 px-1.5 py-0.5 rounded border border-outline-variant/30">⌘K</span>
           </div>
@@ -126,14 +310,6 @@ export default function AnalyticsDashboardPage() {
           <button className="hover:bg-primary-container/20 p-2 rounded-full transition-all duration-300 active:scale-95">
             <span className="material-symbols-outlined text-primary">notifications</span>
           </button>
-          <ThemeToggle
-            theme={theme}
-            onToggle={toggleTheme}
-            className="hover:bg-primary-container/20 p-2 rounded-full transition-all duration-300 active:scale-95"
-          />
-          <div className="w-8 h-8 rounded-full bg-primary-container/30 flex items-center justify-center border border-primary/20">
-            <span className="material-symbols-outlined text-primary text-sm">person</span>
-          </div>
         </div>
       )}
       mainClassName="flex-1 flex flex-col min-h-screen overflow-x-hidden pb-20 md:pb-0"
@@ -145,13 +321,41 @@ export default function AnalyticsDashboardPage() {
             <p className="text-body-lg text-on-surface-variant">Real-time analysis of model performance and student distribution.</p>
           </div>
           <div className="flex gap-2">
-            <button className="flex items-center gap-2 px-4 py-2 rounded-xl bg-surface-container text-primary font-semibold hover:bg-surface-container-highest transition-colors">
-              <span className="material-symbols-outlined text-sm">filter_list</span>
-              Filters
-            </button>
-            <button className="flex items-center gap-2 px-4 py-2 rounded-xl bg-primary text-on-primary font-semibold shadow-lg shadow-primary/20 hover:bg-primary/90 transition-transform active:scale-95">
+            <div className="relative" ref={filterMenuRef}>
+              <button
+                type="button"
+                className="flex items-center gap-2 px-4 py-2 rounded-xl bg-surface-container text-primary font-semibold hover:bg-surface-container-highest transition-colors"
+                onClick={() => setShowFilterMenu((value) => !value)}
+              >
+                <span className="material-symbols-outlined text-sm">filter_list</span>
+                Filters
+              </button>
+              {showFilterMenu ? (
+                <div className="absolute right-0 mt-2 w-48 rounded-2xl border border-outline-variant/20 bg-surface shadow-xl overflow-hidden z-20">
+                  {['All', 'Elite', 'Stable', 'At Risk'].map((item) => (
+                    <button
+                      key={item}
+                      type="button"
+                      className={`w-full text-left px-4 py-3 text-sm hover:bg-primary/5 ${activeFilter === item ? 'text-primary font-semibold bg-primary/5' : 'text-on-surface-variant'}`}
+                      onClick={() => {
+                        setActiveFilter(item);
+                        setShowFilterMenu(false);
+                      }}
+                    >
+                      {item}
+                    </button>
+                  ))}
+                </div>
+              ) : null}
+            </div>
+            <button
+              type="button"
+              onClick={handleUpdateData}
+              className="flex items-center gap-2 px-4 py-2 rounded-xl bg-primary text-on-primary font-semibold shadow-lg shadow-primary/20 hover:bg-primary/90 transition-transform active:scale-95 disabled:opacity-70"
+              disabled={datasetLoading || isRefreshing}
+            >
               <span className="material-symbols-outlined text-sm">refresh</span>
-              Update Data
+              {isRefreshing ? 'Refreshing...' : 'Update Data'}
             </button>
           </div>
         </section>
@@ -363,63 +567,137 @@ export default function AnalyticsDashboardPage() {
                   </tr>
                 </thead>
                 <tbody className="divide-y divide-white/10">
-                  <tr className="hover:bg-primary/5 transition-colors cursor-pointer group">
-                    <td className="px-8 py-4 font-medium">#EDU-8821</td>
-                    <td className="px-6 py-4 text-on-surface-variant">Computer Science</td>
-                    <td className="px-6 py-4 font-bold text-primary">94.5</td>
-                    <td className="px-6 py-4">
-                      <div className="flex items-center gap-2">
-                        <div className="w-12 bg-surface-container rounded-full h-1">
-                          <div className="bg-primary h-full rounded-full" style={{ width: '98%' }} />
+                  {filteredPreviewRows.map((row) => (
+                    <tr key={`${row.studentId}-${row.major}`} className="hover:bg-primary/5 transition-colors cursor-pointer group">
+                      <td className="px-8 py-4 font-medium">{row.studentId}</td>
+                      <td className="px-6 py-4 text-on-surface-variant">{row.major}</td>
+                      <td className="px-6 py-4 font-bold text-primary">{row.predicted}</td>
+                      <td className="px-6 py-4">
+                        <div className="flex items-center gap-2">
+                          <div className="w-12 bg-surface-container rounded-full h-1">
+                            <div className="bg-primary h-full rounded-full" style={{ width: row.confidenceWidth }} />
+                          </div>
+                          <span className="text-xs font-bold">{row.confidence}</span>
                         </div>
-                        <span className="text-xs font-bold">98%</span>
-                      </div>
-                    </td>
-                    <td className="px-8 py-4">
-                      <span className="bg-green-100 text-green-700 px-3 py-1 rounded-full text-[10px] font-bold">ELITE</span>
-                    </td>
-                  </tr>
-                  <tr className="hover:bg-primary/5 transition-colors cursor-pointer">
-                    <td className="px-8 py-4 font-medium">#EDU-4492</td>
-                    <td className="px-6 py-4 text-on-surface-variant">Architecture</td>
-                    <td className="px-6 py-4 font-bold text-primary">78.2</td>
-                    <td className="px-6 py-4">
-                      <div className="flex items-center gap-2">
-                        <div className="w-12 bg-surface-container rounded-full h-1">
-                          <div className="bg-primary h-full rounded-full" style={{ width: '82%' }} />
-                        </div>
-                        <span className="text-xs font-bold">82%</span>
-                      </div>
-                    </td>
-                    <td className="px-8 py-4">
-                      <span className="bg-blue-100 text-blue-700 px-3 py-1 rounded-full text-[10px] font-bold">STABLE</span>
-                    </td>
-                  </tr>
-                  <tr className="hover:bg-primary/5 transition-colors cursor-pointer">
-                    <td className="px-8 py-4 font-medium">#EDU-2210</td>
-                    <td className="px-6 py-4 text-on-surface-variant">Medicine</td>
-                    <td className="px-6 py-4 font-bold text-primary">52.4</td>
-                    <td className="px-6 py-4">
-                      <div className="flex items-center gap-2">
-                        <div className="w-12 bg-surface-container rounded-full h-1">
-                          <div className="bg-error h-full rounded-full" style={{ width: '65%' }} />
-                        </div>
-                        <span className="text-xs font-bold">65%</span>
-                      </div>
-                    </td>
-                    <td className="px-8 py-4">
-                      <span className="bg-error-container text-error px-3 py-1 rounded-full text-[10px] font-bold">AT RISK</span>
-                    </td>
-                  </tr>
+                      </td>
+                      <td className="px-8 py-4">
+                        <span className={`${row.statusClassName} px-3 py-1 rounded-full text-[10px] font-bold`}>{row.status}</span>
+                      </td>
+                    </tr>
+                  ))}
                 </tbody>
               </table>
             </div>
             <div className="p-6 bg-surface-container/30 flex justify-center">
-              <button className="text-primary font-bold text-sm hover:underline">View All 1,240 Entries</button>
+              <button
+                type="button"
+                className="text-primary font-bold text-sm hover:underline disabled:opacity-60"
+                onClick={handleViewAllEntries}
+                disabled={datasetLoading}
+              >
+                {datasetLoading ? 'Loading 1,240 Entries...' : 'View All 1,240 Entries'}
+              </button>
             </div>
+            {datasetError ? (
+              <div className="px-8 pb-6 text-sm text-error">{datasetError}</div>
+            ) : null}
           </div>
         </section>
       </div>
+
+      {showReviewDrawer ? (
+        <div
+          className="fixed inset-0 z-[80] bg-[#111c2d]/20"
+          onClick={() => setShowReviewDrawer(false)}
+          role="presentation"
+        >
+          <div
+            className="absolute right-0 top-0 h-full w-full max-w-[920px] bg-surface shadow-2xl border-l border-outline-variant/20 flex flex-col"
+            onClick={(event) => event.stopPropagation()}
+            role="dialog"
+            aria-modal="true"
+            aria-label="Dataset review drawer"
+          >
+            <button
+              type="button"
+              className="absolute -left-5 top-1/2 -translate-y-1/2 hidden md:flex items-center justify-center w-11 h-11 rounded-full bg-primary text-white shadow-lg shadow-primary/30 border-4 border-surface hover:scale-105 transition-transform"
+              onClick={() => setShowReviewDrawer(false)}
+              aria-label="Close dataset review"
+            >
+              <span className="material-symbols-outlined">close</span>
+            </button>
+
+            <div className="flex items-start justify-between gap-4 p-6 md:p-8 border-b border-outline-variant/20">
+              <div>
+                <p className="text-xs font-bold uppercase tracking-[0.2em] text-on-surface-variant">Dataset Preview</p>
+                <h3 className="font-headline-md text-headline-md text-on-surface mt-1">Review All Entries</h3>
+                <p className="text-sm text-on-surface-variant mt-1">Close this preview whenever you want to return to the compact overview.</p>
+              </div>
+              <button
+                type="button"
+                className="inline-flex items-center justify-center w-11 h-11 rounded-full bg-surface-container text-on-surface hover:bg-surface-container-highest transition-colors shrink-0"
+                onClick={() => setShowReviewDrawer(false)}
+                aria-label="Close dataset review"
+              >
+                <span className="material-symbols-outlined">close</span>
+              </button>
+            </div>
+
+            <div className="flex-1 overflow-y-auto overflow-x-auto custom-scrollbar">
+              {datasetLoading ? (
+                <div className="h-full flex items-center justify-center p-8 text-on-surface-variant">
+                  Loading dataset...
+                </div>
+              ) : (
+                <table className="w-full text-left">
+                  <thead className="sticky top-0 z-10 bg-surface/95 backdrop-blur border-b border-outline-variant/20 text-[10px] uppercase tracking-wider text-on-surface-variant">
+                    <tr>
+                      <th className="px-8 py-4 font-bold">Student ID</th>
+                      <th className="px-6 py-4 font-bold">Major</th>
+                      <th className="px-6 py-4 font-bold">Predicted</th>
+                      <th className="px-6 py-4 font-bold">Confidence</th>
+                      <th className="px-8 py-4 font-bold">Status</th>
+                    </tr>
+                  </thead>
+                  <tbody className="divide-y divide-outline-variant/10">
+                    {filteredReviewRows.map((row) => (
+                      <tr key={`review-${row.studentId}-${row.major}`} className="hover:bg-primary/5 transition-colors cursor-pointer group bg-surface">
+                        <td className="px-8 py-4 font-medium">{row.studentId}</td>
+                        <td className="px-6 py-4 text-on-surface-variant">{row.major}</td>
+                        <td className="px-6 py-4 font-bold text-primary">{row.predicted}</td>
+                        <td className="px-6 py-4">
+                          <div className="flex items-center gap-2">
+                            <div className="w-12 bg-surface-container rounded-full h-1">
+                              <div className="bg-primary h-full rounded-full" style={{ width: row.confidenceWidth }} />
+                            </div>
+                            <span className="text-xs font-bold">{row.confidence}</span>
+                          </div>
+                        </td>
+                        <td className="px-8 py-4">
+                          <span className={`${row.statusClassName} px-3 py-1 rounded-full text-[10px] font-bold`}>{row.status}</span>
+                        </td>
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
+              )}
+            </div>
+
+            <div className="p-4 md:p-6 border-t border-outline-variant/20 bg-surface/90 flex items-center justify-between gap-4">
+              <div className="text-xs text-on-surface-variant">
+                Showing {reviewRowCount.toLocaleString()} entries
+              </div>
+              <button
+                type="button"
+                onClick={() => setShowReviewDrawer(false)}
+                className="px-4 py-2 rounded-xl bg-primary text-on-primary font-semibold hover:bg-primary/90 transition-colors"
+              >
+                Close Review
+              </button>
+            </div>
+          </div>
+        </div>
+      ) : null}
     </DashboardShell>
   );
 }

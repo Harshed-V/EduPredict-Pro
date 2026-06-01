@@ -4,6 +4,7 @@ import PredictPage from './pages/PredictPage';
 import AnalyticsDashboardPage from './pages/AnalyticsDashboardPage';
 import ModelPerformancePage from './pages/ModelPerformancePage';
 import FaqAssistant from './components/chatbot/FaqAssistant';
+import ProfileModal from './components/ui/ProfileModal';
 
 export default function App() {
   return (
@@ -16,6 +17,8 @@ export default function App() {
         <Route path="*" element={<Navigate to="/" replace />} />
       </Routes>
       <FaqAssistant />
+      <ProfileModal />
     </>
   );
 }
+

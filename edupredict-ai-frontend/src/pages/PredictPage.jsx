@@ -1,8 +1,8 @@
 import { useEffect, useRef, useState } from 'react';
 import DashboardShell from '../components/layouts/DashboardShell';
-import ThemeToggle from '../components/ThemeToggle';
-import { useThemeMode } from '../hooks/useThemeMode';
+import { useEngineStatus } from '../hooks/useEngineStatus';
 import { predictStudentPerformance } from '../services/predictApi';
+import { useProfile } from '../context/ProfileContext';
 
 const sidebarItems = [
   {
@@ -81,7 +81,8 @@ function sliderBackground(value, min, max) {
 }
 
 export default function PredictPage() {
-  const { theme, toggleTheme } = useThemeMode();
+  const { username, role, setShowModal } = useProfile();
+  const { statusLabel, statusDotClassName, statusPillClassName } = useEngineStatus();
   const circleRef = useRef(null);
   const intervalRef = useRef(null);
   const [values, setValues] = useState(defaultValues);
@@ -194,10 +195,15 @@ export default function PredictPage() {
             <div className="w-10 h-10 rounded-full bg-primary-fixed flex items-center justify-center">
               <span className="material-symbols-outlined text-primary">person</span>
             </div>
-            <div className="flex flex-col">
-              <span className="text-on-surface font-semibold text-sm">Prof. Henderson</span>
-              <span className="text-on-surface-variant text-xs">Lead Administrator</span>
-            </div>
+            <button
+              type="button"
+              className="flex flex-col text-left min-w-0"
+              onClick={() => setShowModal(true)}
+              aria-label="Edit profile details"
+            >
+              <span className="text-on-surface font-semibold text-sm truncate">{username || 'Guest'}</span>
+              <span className="text-on-surface-variant text-xs truncate">{role || 'User'}</span>
+            </button>
           </>
         )
       }}
@@ -210,21 +216,9 @@ export default function PredictPage() {
       )}
       topBarRight={(
         <div className="flex items-center gap-4">
-          <div className="hidden md:flex bg-surface-container-high rounded-full px-4 py-1.5 items-center gap-2 border border-outline-variant/20">
-            <span className="w-2 h-2 rounded-full bg-secondary-container ai-pulse" />
-            <span className="text-xs font-semibold text-on-surface-variant">AI ENGINE ONLINE</span>
-          </div>
-          <ThemeToggle
-            theme={theme}
-            onToggle={toggleTheme}
-            className="p-2 rounded-full hover:bg-primary-container/20 transition-all"
-          />
-          <div className="w-10 h-10 rounded-full bg-surface-variant overflow-hidden border-2 border-primary-container/30">
-            <img
-              alt="User Profile"
-              className="w-full h-full object-cover"
-              src="https://lh3.googleusercontent.com/aida-public/AB6AXuBGj4tO3pNas27kKtqkXpa1XePQu2y85W36NdbOkkmwEJ22zxzft1YwgUVQRRZ_68uT6eUt9Lhohz-m4DITP8iFY9pdGZMi8Skt1EAgSUN_i0NMHYuqCoHpKRhin67Fy62V33W8ReSjy2LEm0BEpAYASId9-yiYUl7VA7lHJDnsJ1NCTdH7hT0Ous_X7gi0wo60R9XkK7h1JSQO7V5CyCaK7j5OUsprwQcd-ASczcJUFyHkIDD_Q0X15_E-Jh97LLfWUER5Dn2GafA"
-            />
+          <div className={`hidden md:flex rounded-full px-4 py-1.5 items-center gap-2 ${statusPillClassName}`}>
+            <span className={`w-2 h-2 rounded-full ${statusDotClassName} ai-pulse`} />
+            <span className="text-xs font-semibold">{statusLabel}</span>
           </div>
         </div>
       )}

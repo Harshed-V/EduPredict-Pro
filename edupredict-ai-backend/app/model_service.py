@@ -1,11 +1,14 @@
 from __future__ import annotations
 
+import logging
+import os
 from dataclasses import dataclass
 from pathlib import Path
 from typing import Any, Dict, List
 
 import joblib
 
+logger = logging.getLogger(__name__)
 
 FEATURE_NAMES = [
     "StudyHours",
@@ -55,14 +58,61 @@ class ModelBundle:
     confusion_matrix: List[List[int]]
 
 
+PROJECT_ROOT = Path(__file__).resolve().parents[1]
+ARTIFACT_PATH = PROJECT_ROOT / "artifacts" / "student_model.pkl"
+LEGACY_ARTIFACT_PATH = PROJECT_ROOT / "artifacts" / "edupredict_model.joblib"
+
+_cached_bundle: ModelBundle | None = None
+
+
+def _resolve_artifact_path() -> Path | None:
+    env_path = os.getenv("MODEL_ARTIFACT_PATH")
+    if env_path:
+        candidate = Path(env_path)
+        if candidate.exists():
+            return candidate
+        logger.warning("MODEL_ARTIFACT_PATH was set but not found: %s", candidate)
+
+    for candidate in (ARTIFACT_PATH, LEGACY_ARTIFACT_PATH):
+        if candidate.exists():
+            return candidate
+
+    return None
+
+
+def get_model_bundle() -> ModelBundle | None:
+    global _cached_bundle
+    if _cached_bundle is not None:
+        return _cached_bundle
+
+    path = _resolve_artifact_path()
+    if path is None:
+        logger.warning(
+            "No model artifact found. Set MODEL_ARTIFACT_PATH or place model under %s.",
+            PROJECT_ROOT / "artifacts",
+        )
+        return None
+
+    try:
+        _cached_bundle = load_bundle(path)
+        return _cached_bundle
+    except Exception:
+        logger.exception("Failed to load model bundle from %s", path)
+        return None
+
+
 def load_bundle(path: Path) -> ModelBundle:
+    global _cached_bundle
+    if _cached_bundle is not None:
+        return _cached_bundle
+
     if not path.exists():
         raise FileNotFoundError(
             f"Model artifact not found at {path}. Run scripts/train_model.py first."
         )
 
     payload = joblib.load(path)
-    return ModelBundle(
+    _cached_bundle = ModelBundle(
         model=payload["model"],
         feature_names=payload["feature_names"],
         accuracy=float(payload["accuracy"]),
@@ -75,6 +125,7 @@ def load_bundle(path: Path) -> ModelBundle:
         report=payload.get("report", {}),
         confusion_matrix=[[int(value) for value in row] for row in payload.get("confusion_matrix", [])],
     )
+    return _cached_bundle
 
 
 def clamp(value: float, lower: float, upper: float) -> float:

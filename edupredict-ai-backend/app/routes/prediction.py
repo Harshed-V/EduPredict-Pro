@@ -2,7 +2,7 @@ from __future__ import annotations
 
 from fastapi import APIRouter, HTTPException, Request
 
-from ..model_service import predict
+from ..model_service import predict, get_model_bundle
 from ..schemas import PredictionRequest, PredictionResponse
 
 router = APIRouter(prefix="/api", tags=["prediction"])
@@ -10,9 +10,11 @@ router = APIRouter(prefix="/api", tags=["prediction"])
 
 @router.post("/predict", response_model=PredictionResponse)
 def predict_endpoint(request: PredictionRequest, app_request: Request) -> PredictionResponse:
-    bundle = getattr(app_request.app.state, "model_bundle", None)
+    bundle = getattr(app_request.app.state, "model_bundle", None) or get_model_bundle()
     if bundle is None:
         raise HTTPException(status_code=503, detail="Model bundle is not loaded")
+    
+    app_request.app.state.model_bundle = bundle
 
     try:
         result = predict(

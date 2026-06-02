@@ -41,6 +41,12 @@ export function fetchModelMetrics() {
   });
 }
 
+export function checkBackendHealth() {
+  return apiRequest('/api/health', {
+    method: 'GET'
+  });
+}
+
 export function askFaq(question, features = {}) {
   return apiRequest('/api/faq', {
     method: 'POST',

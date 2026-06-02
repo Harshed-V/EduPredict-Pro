@@ -79,6 +79,11 @@ artifacts/
 *.pt
 *.pth
 
+# Explicitly allow committing the trained models for deployment
+!edupredict-ai-backend/artifacts/
+!edupredict-ai-backend/artifacts/*.pkl
+!edupredict-ai-backend/artifacts/*.joblib
+
 
 #### Logs
 logs/

@@ -4,3 +4,4 @@ pandas==3.0.3
 scikit-learn==1.8.0
 joblib==1.4.2
 numpy==2.4.6
+python-multipart

@@ -2,7 +2,8 @@ import { useEffect, useState } from 'react';
 
 async function checkEngineHealth(signal) {
   try {
-    const response = await fetch('/api/health', {
+    const baseUrl = import.meta.env.VITE_API_URL || '';
+    const response = await fetch(`${baseUrl}/api/health`, {
       cache: 'no-store',
       signal
     });

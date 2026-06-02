@@ -197,7 +197,8 @@ export default function AnalyticsDashboardPage() {
 
   const handleDownloadDataset = async () => {
     try {
-      const response = await fetch('/api/dataset/download');
+      const baseUrl = import.meta.env.VITE_API_URL || '';
+      const response = await fetch(`${baseUrl}/api/dataset/download`);
       if (!response.ok) {
         throw new Error('Failed to download dataset');
       }
@@ -227,7 +228,8 @@ export default function AnalyticsDashboardPage() {
       }
 
       try {
-        const response = await fetch('/api/dataset/download', { cache: 'no-store' });
+        const baseUrl = import.meta.env.VITE_API_URL || '';
+        const response = await fetch(`${baseUrl}/api/dataset/download`, { cache: 'no-store' });
         if (!response.ok) {
           throw new Error('Failed to load dataset entries');
         }

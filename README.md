@@ -1,4 +1,4 @@
-# EduPredict AI
+# EduPredict AI. 
 
 EduPredict AI is a student performance prediction project with a FastAPI backend and a Vite + React frontend.  
 **LiveDemo**https://edu-predict-pro.vercel.app/ 
